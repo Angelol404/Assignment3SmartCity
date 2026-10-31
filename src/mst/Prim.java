@@ -2,6 +2,7 @@
 package mst;
 
 import graph.Graph;
+import testing.OperationCounter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,16 +27,20 @@ public class Prim {
         public int totalWeight;
         public List<String> selectedEdges;
         public boolean connected;
+        public long operations;
 
         public Result(int totalWeight, List<String> selectedEdges,
-                      boolean connected) {
+                      boolean connected, long operations) {
             this.totalWeight = totalWeight;
             this.selectedEdges = selectedEdges;
             this.connected = connected;
+            this.operations = operations;
         }
     }
 
     public static Result findMST(Graph graph) {
+
+        OperationCounter counter = new OperationCounter();
 
         if (graph.isDirected()) {
             throw new IllegalArgumentException(
@@ -44,11 +49,11 @@ public class Prim {
         }
 
         int vertices = graph.getVertices();
-
         List<String> selectedEdges = new ArrayList<>();
 
         if (vertices == 0) {
-            return new Result(0, selectedEdges, true);
+            return new Result(0, selectedEdges, true,
+                    counter.getOperations());
         }
 
         boolean[] visited = new boolean[vertices];
@@ -62,16 +67,23 @@ public class Prim {
         int visitedCount = 1;
 
         visited[0] = true;
+        counter.increment();
 
+        // Add edges from starting vertex
         for (Graph.Edge edge : graph.getAdjacencyList().get(0)) {
             queue.add(new EdgeCandidate(
                     0, edge.destination, edge.weight
             ));
+            counter.increment();
         }
 
         while (!queue.isEmpty() && visitedCount < vertices) {
 
+            counter.increment();
+
             EdgeCandidate current = queue.poll();
+
+            counter.increment();
 
             if (visited[current.destination]) {
                 continue;
@@ -79,7 +91,6 @@ public class Prim {
 
             visited[current.destination] = true;
             visitedCount++;
-
             totalWeight += current.weight;
 
             selectedEdges.add(
@@ -87,8 +98,13 @@ public class Prim {
                             " (weight: " + current.weight + ")"
             );
 
+            counter.add(3);
+
+            // Add edges of the newly visited vertex
             for (Graph.Edge edge :
                     graph.getAdjacencyList().get(current.destination)) {
+
+                counter.increment();
 
                 if (!visited[edge.destination]) {
                     queue.add(new EdgeCandidate(
@@ -96,12 +112,18 @@ public class Prim {
                             edge.destination,
                             edge.weight
                     ));
+                    counter.increment();
                 }
             }
         }
 
         boolean connected = visitedCount == vertices;
 
-        return new Result(totalWeight, selectedEdges, connected);
+        return new Result(
+                totalWeight,
+                selectedEdges,
+                connected,
+                counter.getOperations()
+        );
     }
 }

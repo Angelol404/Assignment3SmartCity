@@ -2,6 +2,8 @@
 package shortestpath;
 
 import graph.Graph;
+import testing.OperationCounter;
+
 import java.util.List;
 import java.util.Arrays;
 import java.util.PriorityQueue;
@@ -22,10 +24,13 @@ public class Dijkstra {
     public static class Result {
         public int[] distances;
         public int[] previous;
+        public long operations;
 
-        public Result(int[] distances, int[] previous) {
+        public Result(int[] distances, int[] previous,
+                      long operations) {
             this.distances = distances;
             this.previous = previous;
+            this.operations = operations;
         }
 
         public void printPaths(int source) {
@@ -60,6 +65,8 @@ public class Dijkstra {
 
     public static Result findShortestPaths(Graph graph, int source) {
 
+        OperationCounter counter = new OperationCounter();
+
         int vertices = graph.getVertices();
 
         if (source < 0 || source >= vertices) {
@@ -71,9 +78,13 @@ public class Dijkstra {
 
         Arrays.fill(distances, Integer.MAX_VALUE);
         Arrays.fill(previous, -1);
+        counter.add(2L * vertices);
 
+        // Validate edge weights
         for (List<Graph.Edge> edges : graph.getAdjacencyList()) {
             for (Graph.Edge edge : edges) {
+                counter.increment();
+
                 if (edge.weight < 0) {
                     throw new IllegalArgumentException(
                             "Dijkstra does not support negative weights"
@@ -88,21 +99,34 @@ public class Dijkstra {
 
         distances[source] = 0;
         queue.add(new Node(source, 0));
+        counter.add(2);
 
         while (!queue.isEmpty()) {
 
             Node current = queue.poll();
+            counter.increment();
+
             int vertex = current.vertex;
 
             if (current.distance != distances[vertex]) {
+                counter.increment();
                 continue;
             }
 
             for (Graph.Edge edge :
                     graph.getAdjacencyList().get(vertex)) {
 
+                counter.increment();
+
+                // Avoid integer overflow
+                if (distances[vertex] >
+                        Integer.MAX_VALUE - edge.weight) {
+                    continue;
+                }
+
                 int newDistance =
                         distances[vertex] + edge.weight;
+                counter.increment();
 
                 if (newDistance < distances[edge.destination]) {
 
@@ -112,10 +136,16 @@ public class Dijkstra {
                     queue.add(new Node(
                             edge.destination, newDistance
                     ));
+
+                    counter.add(3);
                 }
             }
         }
 
-        return new Result(distances, previous);
+        return new Result(
+                distances,
+                previous,
+                counter.getOperations()
+        );
     }
 }
